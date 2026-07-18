@@ -4,44 +4,64 @@ import streamlit as st
 from groq import Groq
 from dotenv import load_dotenv
 
-api_key = st.secrets["GROQ_API_KEY"]
+# ============================
+# Load environment variables
+# ============================
+load_dotenv()
 
-client = Groq(api_key=api_key)
-if not api_key:
-    api_key = st.secrets.get("GROQ_API_KEY")
+# Get API key from .env (local)
+api_key = os.getenv("GROQ_API_KEY")
 
+# If not found, try Streamlit Secrets (Cloud)
 if not api_key:
-    st.error("GROQ_API_KEY is missing.")
+    api_key = st.secrets.get("GROQ_API_KEY", None)
+
+# Stop if still missing
+if not api_key:
+    st.error("""
+❌ GROQ_API_KEY not found!
+
+### Local Development
+Create a `.env` file:
+
+GROQ_API_KEY=gsk_your_api_key
+
+### Streamlit Cloud
+Go to:
+
+Settings → Secrets
+
+Add:
+
+GROQ_API_KEY = "gsk_your_api_key"
+""")
     st.stop()
 
+# Initialize Groq client
 client = Groq(api_key=api_key)
-# =========================
 
-# Load Environment Variables
-# =========================
-
-# =========================
-# Page Config
-# =========================
+# ============================
+# Page Configuration
+# ============================
 st.set_page_config(
     page_title="My Personal AI",
     page_icon="🧠",
     layout="wide"
 )
 
-st.title("🧠 Jawad's AI Assistant")
+st.title("🧠 My Personal AI Assistant")
 
-# =========================
+# ============================
 # Session State
-# =========================
+# ============================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# =========================
+# ============================
 # Sidebar
-# =========================
+# ============================
 with st.sidebar:
-    st.header("⚙ Assistant Settings")
+    st.header("⚙️ Settings")
 
     system_prompt = st.text_area(
         "System Prompt",
@@ -51,39 +71,39 @@ with st.sidebar:
 
     model = st.selectbox(
         "Model",
-        [
+        (
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
             "gemma2-9b-it"
-        ]
+        )
     )
 
     temperature = st.slider(
         "Temperature",
-        min_value=0.0,
-        max_value=2.0,
-        value=0.7,
-        step=0.1
+        0.0,
+        2.0,
+        0.7,
+        0.1
     )
 
     max_tokens = st.slider(
         "Max Tokens",
-        min_value=128,
-        max_value=4096,
-        value=1024,
-        step=128
+        128,
+        4096,
+        1024,
+        128
     )
 
     history_limit = st.slider(
         "Conversation Memory",
-        min_value=2,
-        max_value=30,
-        value=10
+        2,
+        30,
+        10
     )
 
     st.divider()
 
-    if st.button("🗑 Clear Chat", use_container_width=True):
+    if st.button("🗑 Clear Chat"):
         st.session_state.messages = []
         st.rerun()
 
@@ -91,25 +111,23 @@ with st.sidebar:
         "📥 Download Chat",
         data=json.dumps(st.session_state.messages, indent=4),
         file_name="chat_history.json",
-        mime="application/json",
-        use_container_width=True
+        mime="application/json"
     )
 
-# =========================
+# ============================
 # Display Chat History
-# =========================
+# ============================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# =========================
-# Chat Input
-# =========================
+# ============================
+# User Input
+# ============================
 user_query = st.chat_input("Ask me anything...")
 
 if user_query:
 
-    # Save user message
     st.session_state.messages.append(
         {
             "role": "user",
@@ -117,11 +135,9 @@ if user_query:
         }
     )
 
-    # Display user message
     with st.chat_message("user"):
         st.markdown(user_query)
 
-    # Assistant response
     with st.chat_message("assistant"):
 
         placeholder = st.empty()
@@ -144,13 +160,12 @@ if user_query:
                 messages=messages,
                 temperature=temperature,
                 max_completion_tokens=max_tokens,
-                stream=True
+                stream=True,
             )
 
             assistant_response = ""
 
             for chunk in stream:
-
                 delta = chunk.choices[0].delta.content
 
                 if delta:
@@ -160,11 +175,9 @@ if user_query:
             placeholder.markdown(assistant_response)
 
         except Exception as e:
-
             assistant_response = f"❌ Error:\n\n{str(e)}"
             placeholder.error(assistant_response)
 
-    # Save assistant response
     st.session_state.messages.append(
         {
             "role": "assistant",
